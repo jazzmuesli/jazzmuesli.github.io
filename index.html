@@ -3,6 +3,7 @@
 		  <script src="https://code.jquery.com/jquery-1.8.2.js"></script>
 		    <script src="https://code.jquery.com/ui/1.9.0/jquery-ui.js"></script>
 		    <script src="jquery.csv.js"></script>
+		    <script src="js.cookie.js"></script>
 		    <script type="text/javascript">
 $.ajax({
 	    url: "words-small.csv",
@@ -16,6 +17,54 @@ $.ajax({
 				    window.onload = display;
 				        }
 });
+var prefix='h';
+var separator = ';';
+var max_length = 395;
+function addToHistory(mtime, word, expected, entered, delay, freq) {
+	var tuple = [mtime, word, expected, entered, delay, freq];
+	addTuple(tuple);
+	var str = tuple.join();
+	var cookies = Cookies.get();
+	var key = 0;
+	var updated = false;
+	for (var k in cookies) {
+		if (k.indexOf(prefix) == 0) {
+			key = k.substring(prefix.length);
+			if (cookies[k].length < max_length - str.length - 3) {
+				Cookies.set(k, cookies[k] + separator + str);
+				updated = true;
+				break;
+			}
+		}
+	}
+	if (!updated) {
+		if (key.length == 0) {
+			key = 0;
+		}
+		key = parseInt(key);
+		key++;
+		Cookies.set(prefix + key, str);
+	}
+}
+function addTuple(tuple) {
+	tuple[0] = new Date(parseInt(tuple[0]));
+	var str = tuple.join('</td><td>');
+	var colour = (tuple[2] == tuple[3]) ? "green" : "red";
+	$("<tr style='background-color: " + colour + "'><td>" + str + "</td></tr>").prependTo("table > tbody");
+}
+
+function displayHistory() {
+	var cookies = Cookies.get();
+	for (var k in cookies) {
+		if (k.indexOf(prefix) == 0) {
+			var items = cookies[k].split(separator);
+			for (var i in items) {
+				var tuple = items[i].split(',');
+				addTuple(tuple);
+			}
+		}
+	}
+}
 function randomIntFromInterval(min,max)
 {
 	    return Math.floor(Math.random()*(max-min+1)+min);
@@ -23,6 +72,9 @@ function randomIntFromInterval(min,max)
 var position = -1;
 var displayTime = new Date();
 function display() {
+	if (position == -1) {
+		displayHistory();
+	}
 	position = randomIntFromInterval(1, data.length-1);
 	var word = data[position][1];
 	document.getElementById('word').innerText = word + " (position=" + position + ", freq=" + data[position][3]+")";
@@ -31,6 +83,7 @@ function display() {
 function next(gender) {
 	var tuple = data[position];
 	var message = new Date().getTime() + "  word " + tuple[1] + " expected " + tuple[2] + " entered " + gender + " delay " + (new Date() - displayTime) + " freq " + tuple[3];
+	addToHistory(new Date().getTime(), tuple[1], tuple[2], gender, (new Date() - displayTime), tuple[3]);
 	document.getElementById('message').innerText = message;
 	var color = 'yellow';
 	if (gender == tuple[2]) {
@@ -39,35 +92,15 @@ function next(gender) {
 		color = 'red';
 	}
 	document.getElementById('message').style.color = color;
-	var oldMessage = readCookie('message');
-	var history = oldMessage + ". " + message;
-	document.getElementById('history').innerText = history.replace(/\./g,'\n');
-	createCookie('message', history, 30);
-display();
+	display();
 }
 
-// http://stackoverflow.com/questions/14573223/set-cookie-and-get-cookie-with-javascript
-function createCookie(name,value,days) {
-	    var expires = "";
-	        if (days) {
-			        var date = new Date();
-				        date.setTime(date.getTime() + (days*24*60*60*1000));
-					        expires = "; expires=" + date.toUTCString();
-						    }
-		    document.cookie = name + "=" + value + expires + "; path=/";
+function resetHistory() {
+	var cs = Cookies.get();
+	for (var k in cs) {
+		Cookies.remove(k);
+	}
 }
-
-function readCookie(name) {
-	    var nameEQ = name + "=";
-	        var ca = document.cookie.split(';');
-		    for(var i=0;i < ca.length;i++) {
-			            var c = ca[i];
-				            while (c.charAt(0)==' ') c = c.substring(1,c.length);
-					            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
-					        }
-		        return null;
-}
-
 document.addEventListener("keydown", keyDownTextField, false);
 
 function keyDownTextField(e) {
@@ -86,8 +119,21 @@ function keyDownTextField(e) {
 	<body>
 		<h1 id="word"></h1>
 		<a href="javascript:next('m')">der (or press m/r)</a>&nbsp;<a href="javascript:next('n');">das (or press n/s)</a>&nbsp;<a href="javascript:next('f');">die (or press f/e)</a><br />
-		<a href="javascript:createCookie('message','',30);">reset history</a>
+		<a href="javascript:resetHistory();">reset history</a>
 		<h3 id="message"></h3>
-		<textarea rows="50" cols="80" id="history"></textarea>
+		<table>
+			<thead>
+				<tr>
+					<th>Date/time</th>
+					<th>Word</th>
+					<th>Expected</th>
+					<th>Entered</th>
+					<th>Delay</th>
+					<th>Frequency</th>
+				</tr>
+			</thead>
+			<tbody>
+			</tbody>
+		</table>
 	</body>
 </html>
