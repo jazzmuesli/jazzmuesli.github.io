@@ -139,6 +139,9 @@ function resetHistory() {
 document.addEventListener("keydown", keyDownTextField, false);
 
 function keyDownTextField(e) {
+	if (e.ctrlKey || e.altKey || e.shiftKey) {
+		return;
+	}
 	var keyCode = e.keyCode;
 	if (keyCode == 78 || keyCode == 83) {
 		next('n');
