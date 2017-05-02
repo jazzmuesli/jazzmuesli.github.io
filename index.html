@@ -4,6 +4,7 @@
 		    <script src="https://code.jquery.com/ui/1.9.0/jquery-ui.js"></script>
 		    <script src="jquery.csv.js"></script>
 		    <script src="js.cookie.js"></script>
+		    <script src="node_modules/file-saver/FileSaver.js"></script>
 		    <script type="text/javascript">
 $.ajax({
 	    url: "words-small.csv",
@@ -20,6 +21,37 @@ $.ajax({
 var prefix='h';
 var separator = ';';
 var max_length = 395;
+function download() {
+	var cookies = Cookies.get();
+	var results = {};
+	for (var k in cookies) {
+		var items = cookies[k].split(separator);
+		for (var i in items) {
+			var tuple = items[i].split(',');
+			results[tuple[0]] = items[i];
+		}
+	}
+	var keys = Object.keys(results);
+	//alert(Object.keys(cookies));
+	keys.sort();
+	var lines = ["datetime,word,expected,entered,delay,frequency\n"];
+	for (var i in keys) {
+		var line = results[keys[i]];
+		lines[lines.length] = line + "\n";
+	}
+
+var a = window.document.createElement('a');
+a.href = window.URL.createObjectURL(new Blob(lines, {type: 'text/csv'}));
+a.download = 'results.csv';
+
+// Append anchor to body.
+document.body.appendChild(a);
+	a.click();
+
+// Remove anchor from body
+document.body.removeChild(a);
+}
+
 function addToHistory(mtime, word, expected, entered, delay, freq) {
 	var tuple = [mtime, word, expected, entered, delay, freq];
 	addTuple(tuple);
@@ -47,9 +79,10 @@ function addToHistory(mtime, word, expected, entered, delay, freq) {
 	}
 }
 function addTuple(tuple) {
-	tuple[0] = new Date(parseInt(tuple[0]));
-	var str = tuple.join('</td><td>');
-	var colour = (tuple[2] == tuple[3]) ? "green" : "red";
+	var cloned = tuple.slice(0);
+	cloned[0] = new Date(parseInt(cloned[0]));
+	var str = cloned.join('</td><td>');
+	var colour = (cloned[2] == cloned[3]) ? "green" : "red";
 	$("<tr style='background-color: " + colour + "'><td>" + str + "</td></tr>").prependTo("table > tbody");
 }
 
@@ -82,7 +115,7 @@ function display() {
 }
 function next(gender) {
 	var tuple = data[position];
-	var message = new Date().getTime() + "  word " + tuple[1] + " expected " + tuple[2] + " entered " + gender + " delay " + (new Date() - displayTime) + " freq " + tuple[3];
+	var message = "  word " + tuple[1] + " expected " + tuple[2] + " entered " + gender + " delay " + (new Date() - displayTime) + " freq " + tuple[3];
 	addToHistory(new Date().getTime(), tuple[1], tuple[2], gender, (new Date() - displayTime), tuple[3]);
 	document.getElementById('message').innerText = message;
 	var color = 'yellow';
@@ -100,6 +133,8 @@ function resetHistory() {
 	for (var k in cs) {
 		Cookies.remove(k);
 	}
+	$("table > tbody").children().remove();
+	displayHistory();
 }
 document.addEventListener("keydown", keyDownTextField, false);
 
@@ -119,7 +154,7 @@ function keyDownTextField(e) {
 	<body>
 		<h1 id="word"></h1>
 		<a href="javascript:next('m')">der (or press m/r)</a>&nbsp;<a href="javascript:next('n');">das (or press n/s)</a>&nbsp;<a href="javascript:next('f');">die (or press f/e)</a><br />
-		<a href="javascript:resetHistory();">reset history</a>
+		<a href="javascript:resetHistory();">reset history</a>&nbsp;<a href="javascript:download();">download results.csv</a>
 		<h3 id="message"></h3>
 		<table>
 			<thead>
